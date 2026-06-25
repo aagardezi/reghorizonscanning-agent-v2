@@ -84,9 +84,13 @@ The agent connects to the following key data sources:
    ```bash
    uv sync --dev --extra eval
    ```
-2. Set up Google Cloud environment:
+2. Authenticate with Google Cloud:
    ```bash
    gcloud auth application-default login
+   ```
+3. Set your target Google Cloud project (required for Vertex AI grounding/search and billing):
+   ```bash
+   export GOOGLE_CLOUD_PROJECT="your-gcp-project-id"
    ```
 
 ### Running Unit Tests
@@ -105,13 +109,31 @@ Once started, open your browser and navigate to:
 
 ---
 
-## 5. Evaluation & Testing
+## 5. Deployment & Publishing
+
+Once tested locally, you can deploy and publish the agent to the Gemini Enterprise Agent Platform.
+
+### 1. Deploy the Agent Code
+To package and deploy the agent container to the runtime:
+```bash
+PYTHONPATH=. uv run agents-cli deploy
+```
+
+### 2. Register/Publish the Agent
+To register your agent and make it available in the Gemini Enterprise Agent catalog:
+```bash
+PYTHONPATH=. uv run agents-cli publish gemini-enterprise
+```
+
+---
+
+## 6. Evaluation & Testing
 
 The project contains a sequential evaluation harness located in `run_local_eval.py` that assesses the quality and accuracy of the generated briefings using LLM-as-a-judge.
 
 1. **Generate Evaluation Traces**:
    ```bash
-   PYTHONPATH=. uv run agents-cli eval generate --project <YOUR_PROJECT_ID> --dataset tests/eval/datasets/regulatory_eval.json
+   PYTHONPATH=. uv run agents-cli eval generate --project $GOOGLE_CLOUD_PROJECT --dataset tests/eval/datasets/regulatory_eval.json
    ```
 2. **Grade the Traces**:
    ```bash
@@ -124,7 +146,7 @@ The project contains a sequential evaluation harness located in `run_local_eval.
 
 ---
 
-## 6. Sample Prompts
+## 7. Sample Prompts
 
 You can test the agent in the playground or evaluation harness using the following prompt categories:
 
