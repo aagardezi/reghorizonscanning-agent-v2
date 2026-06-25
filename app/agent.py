@@ -22,6 +22,7 @@ def _agent_designer_pyopenssl_compat():
 _agent_designer_pyopenssl_compat()
 
 import os
+import pathlib
 import google.auth
 from google.adk.agents import LlmAgent
 from google.adk.workflow import Workflow, JoinNode, node
@@ -30,6 +31,8 @@ from google.adk.models import Gemini
 from google.adk.events.event import Event
 from google.adk.agents.context import Context
 from google.genai import types
+from google.adk.skills import load_skill_from_dir
+from google.adk.tools.skill_toolset import SkillToolset
 
 from app.schemas import HorizonScanningRequest, SourceAnalysis, ComplianceBriefing
 from app.tools import (
@@ -188,27 +191,37 @@ google_search_agent = LlmAgent(
 )
 
 # Synthesis agent fanning in the results and building the final structured briefing
+# Load the horizon-scanning skill
+horizon_scanning_skill = load_skill_from_dir(
+    pathlib.Path(__file__).parent / 'skills' / 'horizon-scanning'
+)
+synthesis_skill_toolset = SkillToolset(skills=[horizon_scanning_skill])
+
+# Synthesis agent fanning in the results and building the final structured briefing
 synthesis_agent = LlmAgent(
-    name="synthesis_agent",
+    name='synthesis_agent',
     model=MODEL_NAME,
     instruction=(
-        "You are the Head of Compliance and Risk Officer.\n"
-        "You are compiling and synthesizing the analysis from individual source-specific compliance agents.\n"
-        "Your task is to:\n"
-        "1. Carefully read and cross-reference all parallel findings (FCA, PRA, HMT, Parliament, Legislation, Sanctions, Google Search) in the input.\n"
-        "2. Highlight overlaps or contradictions between them (e.g., GDPR data breach notifications vs BoE operational resilience requirements).\n"
-        "3. Group emerging compliance risks into High, Medium, and Low urgency categories.\n"
-        "4. Formulate a final structured compliance briefing tailored specifically to the target firm profile: {firm_type}.\n"
-        "Ensure your output strictly conforms to the ComplianceBriefing schema."
+        'You are the Head of Compliance and Risk Officer.\n'
+        'You are compiling and synthesizing the analysis from individual source-specific compliance agents.\n'
+        'Your task is to:\n'
+        '1. Carefully read and cross-reference all parallel findings (FCA, PRA, HMT, Parliament, Legislation, Sanctions, Google Search) in the input.\n'
+        '2. Highlight overlaps or contradictions between them (e.g., GDPR data breach notifications vs BoE operational resilience requirements).\n'
+        '3. Group emerging compliance risks into High, Medium, and Low urgency categories.\n'
+        '4. Formulate a final compliance briefing tailored specifically to the target firm profile: {firm_type}.\n'
+        'Output a detailed, professional, and nicely formatted Markdown report. The report must contain these sections:\n'
+        '# Executive Summary\n'
+        '# Urgency Risk Categorization (detailing High, Medium, and Low risks)\n'
+        '# Overlaps and Contradictions\n'
+        '# Operational Impact Assessment (tailored to the target firm type: {firm_type})'
     ),
-    output_schema=ComplianceBriefing
+    tools=[synthesis_skill_toolset]
 )
 
 join_node = JoinNode(name="join_node")
 
 root_agent = Workflow(
-    name="root_agent",
-    output_schema=ComplianceBriefing,
+    name='root_agent',
     edges=[
         ("START", splitter_agent),
         (splitter_agent, set_state),
