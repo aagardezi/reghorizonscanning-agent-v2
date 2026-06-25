@@ -21,6 +21,7 @@ def _agent_designer_pyopenssl_compat():
 
 _agent_designer_pyopenssl_compat()
 
+import datetime
 import os
 import pathlib
 import google.auth
@@ -76,7 +77,8 @@ def set_state(ctx: Context, node_input: dict) -> Event:
         output=node_input,
         state={
             "firm_type": node_input.get("firm_type"),
-            "extra_context": node_input.get("extra_context") or ""
+            "extra_context": node_input.get("extra_context") or "",
+            "current_date": datetime.date.today().isoformat()
         }
     )
 
@@ -85,6 +87,7 @@ fca_agent = LlmAgent(
     name="fca_agent",
     model=MODEL_NAME,
     instruction=(
+        "Today's date is {current_date}.\n"
         "You are an expert compliance agent specialized in FCA (Financial Conduct Authority) updates.\n"
         "Your task is to:\n"
         "1. Fetch the latest FCA news feed using `get_fca_feed`.\n"
@@ -101,6 +104,7 @@ pra_agent = LlmAgent(
     name="pra_agent",
     model=MODEL_NAME,
     instruction=(
+        "Today's date is {current_date}.\n"
         "You are an expert compliance agent specialized in PRA (Prudential Regulation Authority) / Bank of England updates.\n"
         "Your task is to:\n"
         "1. Fetch the latest PRA/BoE publications using `get_pra_feed`.\n"
@@ -117,6 +121,7 @@ hmt_agent = LlmAgent(
     name="hmt_agent",
     model=MODEL_NAME,
     instruction=(
+        "Today's date is {current_date}.\n"
         "You are an expert compliance agent specialized in HM Treasury (HMT) policy changes.\n"
         "Your task is to:\n"
         "1. Monitor announcements feed using `get_hmt_feed`.\n"
@@ -133,6 +138,7 @@ parl_agent = LlmAgent(
     name="parl_agent",
     model=MODEL_NAME,
     instruction=(
+        "Today's date is {current_date}.\n"
         "You are an expert compliance agent specialized in UK Parliament legislative updates.\n"
         "Your task is to:\n"
         "1. Search bills using `query_parliament_bills` (use {extra_context} if provided as search_term, or search general terms).\n"
@@ -149,6 +155,7 @@ leg_agent = LlmAgent(
     name="leg_agent",
     model=MODEL_NAME,
     instruction=(
+        "Today's date is {current_date}.\n"
         "You are an expert compliance agent specialized in UK Legislation and statutory changes.\n"
         "Your task is to:\n"
         "1. Fetch new legislation feed using `get_legislation_feed`.\n"
@@ -165,6 +172,7 @@ sanctions_agent = LlmAgent(
     name="sanctions_agent",
     model=MODEL_NAME,
     instruction=(
+        "Today's date is {current_date}.\n"
         "You are an expert compliance agent specialized in financial crime and sanctions monitoring.\n"
         "Your task is to:\n"
         "1. Query the UK Sanctions List using `search_uk_sanctions_list` (use {extra_context} or other entities specified in the request as search query).\n"
@@ -182,6 +190,7 @@ google_search_agent = LlmAgent(
     name="google_search_agent",
     model=MODEL_NAME,
     instruction=(
+        "Today's date is {current_date}.\n"
         "You are a dedicated research agent. Use the `google_search` tool (Google Search Grounding) to:\n"
         "1. Look up historical regulatory rules, context, or documents for {firm_type} that are not covered by the current RSS feeds.\n"
         "2. Search for any specific topics mentioned in the extra context: {extra_context}.\n"
@@ -202,6 +211,7 @@ synthesis_agent = LlmAgent(
     name='synthesis_agent',
     model=MODEL_NAME,
     instruction=(
+        "Today's date is {current_date}.\n"
         'You are the Head of Compliance and Risk Officer.\n'
         'You are compiling and synthesizing the analysis from individual source-specific compliance agents.\n'
         'Your task is to:\n'
