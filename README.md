@@ -160,3 +160,8 @@ You can test the agent in the playground or evaluation harness using the followi
 
 ### C. Financial Crime & Sanctions Triggers
 * *"Analyze the OFSI sanctions list update from today. Highlight any newly designated entities or individuals that intersect with our standard sector exposure in maritime trade finance."*
+
+### D. Insurance Sector Horizon Scanning (e.g., Admiral)
+* *"We are a **major UK personal lines insurer (motor and home)** like Admiral. Scan the latest FCA news and consultations for updates on the General Insurance Pricing Practices (GIPP) or fair value assessments. What are the top three compliance actions we need to take?"*
+* *"Analyze the latest PRA publications regarding Solvency UK/Solvency II reforms. Are there changes to capital requirements or matching adjustments that affect UK general insurers?"*
+* *"Search the latest UK Parliament announcements for the Automated Vehicles Act 2024. How will the new liability rules for self-driving cars impact motor insurance product underwriting and claims handling over the next 12 months?"*
