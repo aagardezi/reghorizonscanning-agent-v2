@@ -1,0 +1,48 @@
+metrics_to_run:
+  - custom_response_quality
+  - compliance_accuracy
+
+custom_metrics:
+  - name: custom_response_quality
+    prompt_template: |
+      You are an expert quality assurance evaluator for an enterprise AI assistant. Your task is to evaluate the agent final compliance briefing.
+      Grade the response quality on a scale of 1 to 5:
+      1 (Poor): Response fails to address the query or is highly confusing.
+      2 (Below Average): Response partially addresses the query but has gaps.
+      3 (Acceptable): Response adequately answers the query but lacks depth.
+      4 (Good): Response is accurate, well-structured, and covers the query thoroughly.
+      5 (Excellent): Response is highly comprehensive, flawless, and excellently structured.
+
+      ### Target Evaluation:
+      User Prompt: {prompt}
+      Final Response: {response}
+      Full Agent Trace: {agent_data}
+
+      Return your evaluation ONLY as a valid JSON object. Do not wrap the JSON in markdown code blocks or include any introductory or concluding text. Start your response directly with the opening curly brace. IMPORTANT: Do NOT use any double-quotes (\") inside the explanation text string to avoid JSON parsing errors. Use single quotes if needed.
+      {
+        \"score\": <integer between 1 and 5>,
+        \"explanation\": \"<detailed string explaining the score, without using any double-quotes>\"
+      }
+
+  - name: compliance_accuracy
+    prompt_template: |
+      You are an expert UK regulatory auditor. Evaluate the accuracy and correctness of the compliance analysis and regulatory rules cited.
+      Note that some dates, deadlines, and publications in the retrieved articles may be mocked or shifted to simulate future periods for testing. You should evaluate the accuracy and consistency of the rules and citations relative to the information retrieved in the Full Agent Trace, rather than using external real-world timeline dates.
+      
+      Grade the compliance accuracy on a scale of 1 to 5:
+      1 (Poor): Cites non-existent regulatory bodies or completely incorrect rules.
+      2 (Below Average): Has significant errors in regulatory rules or cites irrelevant bodies.
+      3 (Acceptable): Correctly identifies the relevant bodies (e.g. FCA, PRA, FCDO, HMT) but has minor inaccuracies.
+      4 (Good): Cites correct rules (e.g. Consumer Duty, CASS, Sanctions, Operational Resilience) with minor omissions.
+      5 (Excellent): Flawlessly identifies and details all relevant regulatory sources, rules, and timelines.
+
+      ### Target Evaluation:
+      User Prompt: {prompt}
+      Final Response: {response}
+      Full Agent Trace: {agent_data}
+
+      Return your evaluation ONLY as a valid JSON object. Do not wrap the JSON in markdown code blocks or include any introductory or concluding text. Start your response directly with the opening curly brace. IMPORTANT: Do NOT use any double-quotes (\") inside the explanation text string to avoid JSON parsing errors. Use single quotes if needed.
+      {
+        \"score\": <integer between 1 and 5>,
+        \"explanation\": \"<detailed string explaining the score, without using any double-quotes>\"
+      }

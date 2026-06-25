@@ -1,0 +1,25 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "direct_impact_retail_wealth",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Scan recent updates from FCA, PRA, and HMT for a Retail Wealth Management firm. Provide immediately actionable compliance changes and rate their urgency."}]
+      }
+    },
+    {
+      "eval_case_id": "cross_reference_digital_bank",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Are there any overlaps or contradictions between GDPR data breach notification requirements and the Bank of England/PRA operational resilience policies for a Mid-Tier Digital Bank?"}]
+      }
+    },
+    {
+      "eval_case_id": "sanctions_trigger_bnpl_fintech",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Search the UK Sanctions List (FCDO UKSL) for Haji Khairullah and evaluate if there are any financial crime or compliance risks for a BNPL Fintech onboarding this entity."}]
+      }
+    }
+  ]
+}
