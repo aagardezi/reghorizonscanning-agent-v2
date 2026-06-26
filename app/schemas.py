@@ -69,6 +69,7 @@ class ComplianceBriefing(BaseModel):
 class HorizonScanningRequest(BaseModel):
     firm_type: str = Field(description="The firm profile (e.g. Retail Wealth Management, Mid-Tier Digital Bank, BNPL Fintech)")
     extra_context: Optional[str] = Field(default=None, description="Optional extra context or query detail (e.g. searching for sanctions names or specific topics)")
+    as_of_date: Optional[str] = Field(default=None, description="Optional date the request should be evaluated as of (e.g. YYYY-MM-DD or simply a year)")
 
 
 class CriticDecision(BaseModel):

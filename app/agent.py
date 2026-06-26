@@ -64,8 +64,9 @@ splitter_agent = LlmAgent(
     model=MODEL_NAME,
     instruction=(
         "You are an expert parsing assistant. Analyze the user query regarding regulatory horizon scanning.\n"
-        "Identify the target firm type/profile (e.g. Retail Wealth Management, Mid-Tier Digital Bank, or BNPL Fintech) "
-        "and any extra context (such as names to check in sanctions list, specific bills, or regulations like GDPR).\n"
+        "Identify the target firm type/profile (e.g. Retail Wealth Management, Mid-Tier Digital Bank, or BNPL Fintech),\n"
+        "any extra context (such as names to check in sanctions list, specific bills, or regulations like GDPR),\n"
+        "and check if the user specifies a particular date or year they want the analysis to be evaluated as of (e.g. 'as of Dec 2025' or 'in 2024').\n"
         "Output a structured HorizonScanningRequest JSON object."
     ),
     output_schema=HorizonScanningRequest
@@ -73,14 +74,13 @@ splitter_agent = LlmAgent(
 
 @node
 def set_state(ctx: Context, node_input: dict) -> Event:
-    return Event(
-        output=node_input,
-        state={
-            "firm_type": node_input.get("firm_type"),
-            "extra_context": node_input.get("extra_context") or "",
-            "current_date": datetime.date.today().isoformat()
-        }
-    )
+    as_of_date = node_input.get("as_of_date")
+    if not as_of_date:
+        as_of_date = datetime.date.today().isoformat()
+    ctx.state["firm_type"] = node_input.get("firm_type")
+    ctx.state["extra_context"] = node_input.get("extra_context") or ""
+    ctx.state["current_date"] = as_of_date
+    return Event(output=node_input)
 
 
 # QA Critic instruction template
