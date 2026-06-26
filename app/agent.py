@@ -22,6 +22,7 @@ def _agent_designer_pyopenssl_compat():
 _agent_designer_pyopenssl_compat()
 
 import datetime
+from typing import Any
 import os
 import pathlib
 import google.auth
@@ -101,7 +102,7 @@ CRITIC_INSTRUCTION = (
 # Dynamic router node factory
 def create_critic_router(prefix: str):
     @node(name=f"route_{prefix}")
-    def route_node(node_input: CriticDecision, context: Context) -> str:
+    def route_node(node_input: CriticDecision, context: Context) -> Any:
         context.state[f"{prefix}_feedback"] = node_input.feedback
         context.state[f"{prefix}_followup_queries"] = node_input.followup_queries
         
@@ -114,7 +115,10 @@ def create_critic_router(prefix: str):
         else:
             context.route = node_input.decision
             
-        return node_input.feedback
+        if context.route == "continue":
+            return context.state.get(f"{prefix}_analysis")
+        else:
+            return node_input.feedback
     return route_node
 
 route_fca = create_critic_router("fca")
@@ -297,7 +301,8 @@ google_search_agent = LlmAgent(
         "2. Search for any specific topics mentioned in the extra context: {extra_context}.\n"
         "Provide a detailed text report of your findings."
     ),
-    tools=[google_search]
+    tools=[google_search],
+    output_key="google_search_analysis"
 )
 
 # Synthesis agent fanning in the results and building the final structured briefing
