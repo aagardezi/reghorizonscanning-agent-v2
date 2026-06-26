@@ -25,20 +25,26 @@ The agent is designed using enterprise-grade architecture patterns provided by t
 graph TD
     User([User Prompt & Firm Profile]) --> Splitter[Splitter Agent]
     Splitter --> State[Set Session State]
-    State --> FCA[FCA Agent]
-    State --> PRA[PRA Agent]
-    State --> HMT[HMT Agent]
-    State --> Parl[Parliament Agent]
-    State --> Leg[Legislation Agent]
-    State --> Sanc[Sanctions Agent]
-    State --> Search[Google Search Agent]
-    FCA --> Join{Join Node}
-    PRA --> Join
-    HMT --> Join
-    Parl --> Join
-    Leg --> Join
-    Sanc --> Join
-    Search --> Join
+
+    subgraph Parallel Scanning & Verification Loops
+        direction TB
+        State --> FCA[FCA Agent] <--> FCAC[FCA Critic / Router]
+        State --> PRA[PRA Agent] <--> PRAC[PRA Critic / Router]
+        State --> HMT[HMT Agent] <--> HMTC[HMT Critic / Router]
+        State --> Parl[Parliament Agent] <--> ParlC[Parliament Critic / Router]
+        State --> Leg[Legislation Agent] <--> LegC[Legislation Critic / Router]
+        State --> Sanc[Sanctions Agent] <--> SancC[Sanctions Critic / Router]
+        State --> Search[Google Search Agent] <--> SearchC[Search Critic / Router]
+    end
+
+    FCAC -->|continue / verified report| Join{Join Node}
+    PRAC -->|continue / verified report| Join
+    HMTC -->|continue / verified report| Join
+    ParlC -->|continue / verified report| Join
+    LegC -->|continue / verified report| Join
+    SancC -->|continue / verified report| Join
+    SearchC -->|continue / verified report| Join
+
     Join --> Synthesis[Synthesis Agent]
     
     subgraph Skills
@@ -51,7 +57,8 @@ graph TD
 
 ### Key Architectural Patterns:
 * **Multi-Agent Orchestration (Parallel Workflows)**: The `root_agent` uses ADK's `Workflow` API to execute domain-specific subagents in parallel. This fanning-out pattern keeps context windows focused, prevents tool collision, and reduces overall latency.
-* **Join Node Synchronization**: A `JoinNode` blocks execution until all parallel feeds and web searches have finished, fanning the data back in for synthesis.
+* **Critic-in-the-Loop Verification**: Each domain agent is paired with a dedicated QA Critic agent that reviews the generated compliance analysis against accuracy, completeness, and relevance criteria. The critic dynamically routes the agent back for iterative retry loops with targeted follow-up queries if gaps are found.
+* **Payload Forwarding Join**: Predecessor router nodes forward the actual verified `SourceAnalysis` reports to the `JoinNode` on completion, ensuring the `synthesis_agent` receives the structured findings directly in its input payload.
 * **Progressive Disclosure (Skills)**: Rather than bloating the system prompt, the orchestrator dynamically loads the `horizon-scanning` skill instructions and tools for the `synthesis_agent` only when the final briefing needs to be generated.
 * **Grounding**: The `google_search` tool is integrated into an isolated node, allowing the agent to retrieve historical documents, definitions, and verify citations on the web without disabling automatic function calling for internal tools.
 
