@@ -53,7 +53,7 @@ class SynthesisInput(BaseModel):
     google_search_grounding: Optional[str] = Field(default=None)
 
 class SourceAnalysis(BaseModel):
-    source_name: str = Field(description="Name of the source analyzed (e.g. FCA, PRA, HMT, Parliament, Legislation, Sanctions, Google Search)")
+    source_name: str = Field(default="Unknown Source", description="Name of the source analyzed (e.g. FCA, PRA, HMT, Parliament, Legislation, Sanctions, Google Search)")
     summary: str = Field(default="No relevant updates found.", description="Concise summary of updates found")
     operational_impact: str = Field(default="No operational impact.", description="Operational impact assessment for the target firm profile")
     detected_risks: List[str] = Field(default_factory=list, description="List of specific risks identified")
