@@ -3,7 +3,7 @@
 # you may not use this file except in compliance with the License.
 
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 class FeedItem(BaseModel):
     title: str = Field(description="Title of the news or publication item")
@@ -69,3 +69,16 @@ class ComplianceBriefing(BaseModel):
 class HorizonScanningRequest(BaseModel):
     firm_type: str = Field(description="The firm profile (e.g. Retail Wealth Management, Mid-Tier Digital Bank, BNPL Fintech)")
     extra_context: Optional[str] = Field(default=None, description="Optional extra context or query detail (e.g. searching for sanctions names or specific topics)")
+
+
+class CriticDecision(BaseModel):
+    decision: Literal["retry", "continue"] = Field(
+        description="Whether to retry the analysis (retry) or approve and continue (continue)."
+    )
+    feedback: str = Field(
+        description="Detailed suggestions and feedback for the agent."
+    )
+    followup_queries: List[str] = Field(
+        default=[],
+        description="A list of specific search terms, entities, or section numbers to look up in the retry loop."
+    )
