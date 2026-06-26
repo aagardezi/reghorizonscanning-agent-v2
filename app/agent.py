@@ -321,7 +321,7 @@ synthesis_agent = LlmAgent(
         'You are the Head of Compliance and Risk Officer.\n'
         'You are compiling and synthesizing the analysis from individual source-specific compliance agents.\n'
         'Your task is to:\n'
-        '1. Carefully read and cross-reference all parallel findings (FCA, PRA, HMT, Parliament, Legislation, Sanctions, Google Search) in the input.\n'
+        '1. Carefully read and cross-reference all parallel findings from the input dictionary (keys: route_fca, route_pra, route_hmt, route_parl, route_leg, route_sanctions, route_google_search).\n'
         '2. Highlight overlaps or contradictions between them (e.g., GDPR data breach notifications vs BoE operational resilience requirements).\n'
         '3. Group emerging compliance risks into High, Medium, and Low urgency categories.\n'
         '4. Formulate a final compliance briefing tailored specifically to the target firm profile: {firm_type}.\n'
