@@ -47,10 +47,17 @@ graph TD
 
     Join --> Synthesis[Synthesis Agent]
     
-    subgraph Skills
-        Skill[horizon-scanning skill]
+    subgraph Skills (Progressive Disclosure)
+        SK_RA[regulatory-analysis]
+        SK_SA[sanctions-audit]
+        SK_CC[compliance-critic]
+        SK_HS[horizon-scanning]
     end
-    Skill -.-> |Loaded Dynamically| Synthesis
+
+    SK_RA -.-> |Mounted Toolset| FCA & PRA & HMT & Parl & Leg
+    SK_SA -.-> |Mounted Toolset| Sanc & SancC
+    SK_CC -.-> |Mounted Toolset| FCAC & PRAC & HMTC & ParlC & LegC & SancC & SearchC
+    SK_HS -.-> |Mounted Toolset| Synthesis
     
     Synthesis --> Output[\Detailed Markdown Briefing\]
 ```
@@ -59,7 +66,11 @@ graph TD
 * **Multi-Agent Orchestration (Parallel Workflows)**: The `root_agent` uses ADK's `Workflow` API to execute domain-specific subagents in parallel. This fanning-out pattern keeps context windows focused, prevents tool collision, and reduces overall latency.
 * **Critic-in-the-Loop Verification**: Each domain agent is paired with a dedicated QA Critic agent that reviews the generated compliance analysis against accuracy, completeness, and relevance criteria. The critic dynamically routes the agent back for iterative retry loops with targeted follow-up queries if gaps are found.
 * **Payload Forwarding Join**: Predecessor router nodes forward the actual verified `SourceAnalysis` reports to the `JoinNode` on completion, ensuring the `synthesis_agent` receives the structured findings directly in its input payload.
-* **Progressive Disclosure (Skills)**: Rather than bloating the system prompt, the orchestrator dynamically loads the `horizon-scanning` skill instructions and tools for the `synthesis_agent` only when the final briefing needs to be generated.
+* **Progressive Disclosure (Skills)**: Rather than bloating the core system prompts with complex checklists, standard instructions are loaded dynamically only when needed:
+  * **`regulatory-analysis` skill**: Loaded by domain agents to perform structured regulatory gap analysis and map operational impacts to insurance firm functions (Actuarial, IT, Compliance, Claims, Underwriting).
+  * **`sanctions-audit` skill**: Loaded by the sanctions agent and critic to perform phonetic alias checks and expose counterparty risks.
+  * **`compliance-critic` skill**: Loaded by critics to evaluate accuracy/completeness and format constructive retry instructions.
+  * **`horizon-scanning` skill**: Loaded by the synthesis agent to aggregate findings and compile the final briefing.
 * **Grounding**: The `google_search` tool is integrated into an isolated node, allowing the agent to retrieve historical documents, definitions, and verify citations on the web without disabling automatic function calling for internal tools.
 
 ---
