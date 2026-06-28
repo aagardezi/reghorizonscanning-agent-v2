@@ -125,7 +125,7 @@ def main():
             try:
                 # Force structured JSON output
                 response_obj = client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-flash-latest",
                     contents=formatted_prompt,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
