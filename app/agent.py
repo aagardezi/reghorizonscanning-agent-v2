@@ -21,6 +21,142 @@ def _agent_designer_pyopenssl_compat():
 
 _agent_designer_pyopenssl_compat()
 
+
+def _adk_empty_content_compat():
+    try:
+        import google.adk.flows.llm_flows.contents as adk_contents
+        from google.adk.events.event import Event
+        import copy
+    except ImportError:
+        return
+
+    if getattr(adk_contents, "_compat_applied", False):
+        return
+
+    orig_contains_empty_content = adk_contents._contains_empty_content
+    orig_get_contents = adk_contents._get_contents
+
+    def patched_contains_empty_content(event: Event) -> bool:
+        if event.actions and event.actions.compaction:
+            return False
+
+        has_visible_parts = False
+        if event.content and event.content.parts:
+            has_visible_parts = any(not adk_contents._is_part_invisible(p) for p in event.content.parts)
+
+        if has_visible_parts:
+            return False
+
+        return orig_contains_empty_content(event)
+
+    def patched_get_contents(
+        current_branch,
+        events,
+        agent_name="",
+        *,
+        preserve_function_call_ids=False,
+        isolation_scope=None,
+        is_single_turn=False,
+        user_content=None,
+    ):
+        import uuid
+        # Pre-process the events list to repair missing roles and function call/response IDs
+        for i, event in enumerate(events):
+            # 1. Repair missing content roles
+            if event.content and not event.content.role:
+                if any(p.function_response for p in event.content.parts or []):
+                    event.content.role = "user"
+                elif event.author == "user":
+                    event.content.role = "user"
+                else:
+                    event.content.role = "model"
+
+            # 2. Repair missing function call/response IDs
+            if event.content and event.content.parts:
+                for part in event.content.parts:
+                    if part.function_response:
+                        resp = part.function_response
+                        resp_id = resp.id
+                        if not resp_id:
+                            resp_id = f"adk-{uuid.uuid4()}"
+                            resp.id = resp_id
+                        
+                        # Search backward for the nearest matching function call event of the same name
+                        for j in range(i - 1, -1, -1):
+                            prev_event = events[j]
+                            if prev_event.content and prev_event.content.parts:
+                                matched = False
+                                for prev_part in prev_event.content.parts:
+                                    if prev_part.function_call and prev_part.function_call.name == resp.name:
+                                        if not prev_part.function_call.id or prev_part.function_call.id != resp_id:
+                                            prev_part.function_call.id = resp_id
+                                            matched = True
+                                            break
+                                if matched:
+                                    break
+
+        return orig_get_contents(
+            current_branch=current_branch,
+            events=events,
+            agent_name=agent_name,
+            preserve_function_call_ids=preserve_function_call_ids,
+            isolation_scope=isolation_scope,
+            is_single_turn=is_single_turn,
+            user_content=user_content,
+        )
+
+    adk_contents._contains_empty_content = patched_contains_empty_content
+    adk_contents._get_contents = patched_get_contents
+    adk_contents._compat_applied = True
+
+_adk_empty_content_compat()
+
+def _adk_vertex_session_isolation_compat():
+    try:
+        import google.adk.sessions.vertex_ai_session_service as vertex_session
+        from google.adk.events.event import Event
+    except ImportError:
+        return
+
+    if getattr(vertex_session, "_isolation_compat_applied", False):
+        return
+
+    orig_from_api_event = vertex_session._from_api_event
+    orig_append_event = vertex_session.VertexAiSessionService.append_event
+
+    def patched_from_api_event(api_event_obj) -> Event:
+        event = orig_from_api_event(api_event_obj)
+        # Restore fields from custom_metadata if raw_event is missing
+        raw_event_dict = vertex_session._get_raw_event(api_event_obj)
+        if not raw_event_dict and event.custom_metadata:
+            if "_isolation_scope" in event.custom_metadata:
+                event.isolation_scope = event.custom_metadata["_isolation_scope"]
+            if "_output" in event.custom_metadata:
+                event.output = event.custom_metadata["_output"]
+            if "_node_info" in event.custom_metadata:
+                from google.adk.events.event import NodeInfo
+                event.node_info = NodeInfo.model_validate(event.custom_metadata["_node_info"])
+        return event
+
+    async def patched_append_event(self, session, event: Event) -> Event:
+        # Populate isolation_scope, output, and node_info into custom_metadata before serialize/append
+        if not event.custom_metadata:
+            event.custom_metadata = {}
+        if event.isolation_scope:
+            event.custom_metadata["_isolation_scope"] = event.isolation_scope
+        if event.output is not None:
+            event.custom_metadata["_output"] = event.output
+        if event.node_info and event.node_info.path:
+            event.custom_metadata["_node_info"] = event.node_info.model_dump(mode="json")
+        
+        return await orig_append_event(self, session, event)
+
+    vertex_session._from_api_event = patched_from_api_event
+    vertex_session.VertexAiSessionService.append_event = patched_append_event
+    vertex_session._isolation_compat_applied = True
+
+_adk_vertex_session_isolation_compat()
+
 import datetime
 from typing import Any
 import os
