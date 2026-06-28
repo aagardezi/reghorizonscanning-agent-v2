@@ -59,6 +59,17 @@ os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
 
 MODEL_NAME = "gemini-flash-latest"
 
+# Load new skills
+regulatory_analysis_skill = load_skill_from_dir(pathlib.Path(__file__).parent / 'skills' / 'regulatory-analysis')
+sanctions_audit_skill = load_skill_from_dir(pathlib.Path(__file__).parent / 'skills' / 'sanctions-audit')
+compliance_critic_skill = load_skill_from_dir(pathlib.Path(__file__).parent / 'skills' / 'compliance-critic')
+
+# Instantiate SkillToolset objects
+regulatory_analysis_toolset = SkillToolset(skills=[regulatory_analysis_skill])
+sanctions_audit_toolset = SkillToolset(skills=[sanctions_audit_skill])
+compliance_critic_toolset = SkillToolset(skills=[compliance_critic_skill])
+sanctions_critic_toolset = SkillToolset(skills=[sanctions_audit_skill, compliance_critic_skill])
+
 # 1. Splitter Agent to parse natural language queries
 splitter_agent = LlmAgent(
     name="splitter_agent",
@@ -134,42 +145,49 @@ fca_critic = LlmAgent(
     name="fca_critic",
     model=MODEL_NAME,
     instruction=CRITIC_INSTRUCTION,
+    tools=[compliance_critic_toolset],
     output_schema=CriticDecision
 )
 pra_critic = LlmAgent(
     name="pra_critic",
     model=MODEL_NAME,
     instruction=CRITIC_INSTRUCTION,
+    tools=[compliance_critic_toolset],
     output_schema=CriticDecision
 )
 hmt_critic = LlmAgent(
     name="hmt_critic",
     model=MODEL_NAME,
     instruction=CRITIC_INSTRUCTION,
+    tools=[compliance_critic_toolset],
     output_schema=CriticDecision
 )
 parl_critic = LlmAgent(
     name="parl_critic",
     model=MODEL_NAME,
     instruction=CRITIC_INSTRUCTION,
+    tools=[compliance_critic_toolset],
     output_schema=CriticDecision
 )
 leg_critic = LlmAgent(
     name="leg_critic",
     model=MODEL_NAME,
     instruction=CRITIC_INSTRUCTION,
+    tools=[compliance_critic_toolset],
     output_schema=CriticDecision
 )
 sanctions_critic = LlmAgent(
     name="sanctions_critic",
     model=MODEL_NAME,
     instruction=CRITIC_INSTRUCTION,
+    tools=[sanctions_critic_toolset],
     output_schema=CriticDecision
 )
 google_search_critic = LlmAgent(
     name="google_search_critic",
     model=MODEL_NAME,
     instruction=CRITIC_INSTRUCTION,
+    tools=[compliance_critic_toolset],
     output_schema=CriticDecision
 )
 
@@ -188,7 +206,7 @@ fca_agent = LlmAgent(
         "3. Evaluate how these updates impact the target firm type: {firm_type}. Extra Context: {extra_context}.\n"
         "Generate a structured SourceAnalysis output."
     ),
-    tools=[get_fca_feed, load_web_page],
+    tools=[get_fca_feed, load_web_page, regulatory_analysis_toolset],
     output_schema=SourceAnalysis,
     output_key="fca_analysis"
 )
@@ -207,7 +225,7 @@ pra_agent = LlmAgent(
         "3. Analyze their compliance impact on the target firm type: {firm_type}. Extra Context: {extra_context}.\n"
         "Generate a structured SourceAnalysis output."
     ),
-    tools=[get_pra_feed, load_web_page],
+    tools=[get_pra_feed, load_web_page, regulatory_analysis_toolset],
     output_schema=SourceAnalysis,
     output_key="pra_analysis"
 )
@@ -226,7 +244,7 @@ hmt_agent = LlmAgent(
         "3. Evaluate the compliance impact on the target firm type: {firm_type}. Extra Context: {extra_context}.\n"
         "Generate a structured SourceAnalysis output."
     ),
-    tools=[get_hmt_feed, load_web_page],
+    tools=[get_hmt_feed, load_web_page, regulatory_analysis_toolset],
     output_schema=SourceAnalysis,
     output_key="hmt_analysis"
 )
@@ -245,7 +263,7 @@ parl_agent = LlmAgent(
         "3. Evaluate impact on the target firm type: {firm_type}.\n"
         "Generate a structured SourceAnalysis output."
     ),
-    tools=[query_parliament_bills, load_web_page],
+    tools=[query_parliament_bills, load_web_page, regulatory_analysis_toolset],
     output_schema=SourceAnalysis,
     output_key="parl_analysis"
 )
@@ -264,7 +282,7 @@ leg_agent = LlmAgent(
         "3. Evaluate compliance impact on the target firm type: {firm_type}. Extra Context: {extra_context}.\n"
         "Generate a structured SourceAnalysis output."
     ),
-    tools=[get_legislation_feed, load_web_page],
+    tools=[get_legislation_feed, load_web_page, regulatory_analysis_toolset],
     output_schema=SourceAnalysis,
     output_key="leg_analysis"
 )
@@ -283,7 +301,7 @@ sanctions_agent = LlmAgent(
         "3. Evaluate compliance and operational impact on the target firm type: {firm_type}.\n"
         "Generate a structured SourceAnalysis output."
     ),
-    tools=[search_uk_sanctions_list],
+    tools=[search_uk_sanctions_list, sanctions_audit_toolset],
     output_schema=SourceAnalysis,
     output_key="sanctions_analysis"
 )
