@@ -27,14 +27,16 @@ def _adk_empty_content_compat():
         import google.adk.flows.llm_flows.contents as adk_contents
         from google.adk.events.event import Event
         import copy
-    except ImportError:
-        return
+        
+        if getattr(adk_contents, "_compat_applied", False):
+            return
 
-    if getattr(adk_contents, "_compat_applied", False):
+        orig_contains_empty_content = getattr(adk_contents, "_contains_empty_content", None)
+        orig_get_contents = getattr(adk_contents, "_get_contents", None)
+        if not orig_contains_empty_content or not orig_get_contents:
+            return
+    except Exception:
         return
-
-    orig_contains_empty_content = adk_contents._contains_empty_content
-    orig_get_contents = adk_contents._get_contents
 
     def patched_contains_empty_content(event: Event) -> bool:
         if event.actions and event.actions.compaction:
@@ -115,14 +117,16 @@ def _adk_vertex_session_isolation_compat():
     try:
         import google.adk.sessions.vertex_ai_session_service as vertex_session
         from google.adk.events.event import Event
-    except ImportError:
-        return
+        
+        if getattr(vertex_session, "_isolation_compat_applied", False):
+            return
 
-    if getattr(vertex_session, "_isolation_compat_applied", False):
+        orig_from_api_event = getattr(vertex_session, "_from_api_event", None)
+        orig_append_event = getattr(vertex_session.VertexAiSessionService, "append_event", None)
+        if not orig_from_api_event or not orig_append_event:
+            return
+    except Exception:
         return
-
-    orig_from_api_event = vertex_session._from_api_event
-    orig_append_event = vertex_session.VertexAiSessionService.append_event
 
     def patched_from_api_event(api_event_obj) -> Event:
         event = orig_from_api_event(api_event_obj)
@@ -156,6 +160,7 @@ def _adk_vertex_session_isolation_compat():
     vertex_session._isolation_compat_applied = True
 
 _adk_vertex_session_isolation_compat()
+
 
 import datetime
 from typing import Any
