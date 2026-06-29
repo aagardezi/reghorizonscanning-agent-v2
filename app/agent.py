@@ -359,6 +359,8 @@ def set_state(ctx: Context, node_input: dict) -> Event:
     ctx.state["firm_type"] = node_input.get("firm_type")
     ctx.state["extra_context"] = node_input.get("extra_context") or ""
     ctx.state["current_date"] = as_of_date
+    for prefix in ["fca", "pra", "hmt", "parl", "leg", "sanctions", "google_search"]:
+        ctx.state[f"{prefix}_verified"] = False
     return Event(output=node_input)
 
 
@@ -394,8 +396,10 @@ def create_critic_router(prefix: str):
             context.route = node_input.decision
             
         if context.route == "continue":
+            context.state[f"{prefix}_verified"] = True
             return context.state.get(f"{prefix}_analysis")
         else:
+            context.state[f"{prefix}_verified"] = False
             return node_input.feedback
     return route_node
 
@@ -619,6 +623,21 @@ synthesis_agent = LlmAgent(
     tools=[synthesis_skill_toolset]
 )
 
+@node
+def route_synthesis(node_input: dict, context: Context) -> Any:
+    prefixes = ["fca", "pra", "hmt", "parl", "leg", "sanctions", "google_search"]
+    all_verified = all(context.state.get(f"{prefix}_verified", False) for prefix in prefixes)
+    if all_verified:
+        context.route = "execute"
+        return node_input
+    else:
+        context.route = "skip"
+        return "Synthesis skipped: not all branches are verified."
+
+@node
+def skip_synthesis(node_input: Any, context: Context) -> None:
+    return None
+
 join_node = JoinNode(name="join_node")
 
 root_agent = Workflow(
@@ -669,7 +688,8 @@ root_agent = Workflow(
         (google_search_critic, route_google_search),
         (route_google_search, {"retry": google_search_agent, "continue": join_node}),
         
-        (join_node, synthesis_agent)
+        (join_node, route_synthesis),
+        (route_synthesis, {"execute": synthesis_agent, "skip": skip_synthesis})
     ]
 )
 
