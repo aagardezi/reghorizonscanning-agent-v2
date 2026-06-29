@@ -62,8 +62,34 @@ def _adk_empty_content_compat():
         user_content=None,
     ):
         import uuid
-        # Pre-process the events list to repair missing roles and function call/response IDs
-        for i, event in enumerate(events):
+
+        # 1. Filter out events that are annulled by a rewind
+        rewind_filtered_events = []
+        i = len(events) - 1
+        while i >= 0:
+            event = events[i]
+            if event.actions and event.actions.rewind_before_invocation_id:
+                rewind_invocation_id = event.actions.rewind_before_invocation_id
+                for j in range(0, i, 1):
+                    if events[j].invocation_id == rewind_invocation_id:
+                        i = j
+                        break
+            else:
+                rewind_filtered_events.append(event)
+            i -= 1
+        rewind_filtered_events.reverse()
+
+        # 2. Filter by branch and isolation scope so we only pair function calls and responses
+        # that are visible in the same context.
+        visible_events = [
+            e for e in rewind_filtered_events
+            if adk_contents._should_include_event_in_context(
+                current_branch, e, isolation_scope=isolation_scope
+            )
+        ]
+
+        # Pre-process the visible events list to repair missing roles and function call/response IDs
+        for i, event in enumerate(visible_events):
             # 1. Repair missing content roles
             if event.content and not event.content.role:
                 if any(p.function_response for p in event.content.parts or []):
@@ -83,9 +109,9 @@ def _adk_empty_content_compat():
                             resp_id = f"adk-{uuid.uuid4()}"
                             resp.id = resp_id
                         
-                        # Search backward for the nearest matching function call event of the same name
+                        # Search backward in visible_events for the nearest matching function call event of the same name
                         for j in range(i - 1, -1, -1):
-                            prev_event = events[j]
+                            prev_event = visible_events[j]
                             if prev_event.content and prev_event.content.parts:
                                 matched = False
                                 for prev_part in prev_event.content.parts:
