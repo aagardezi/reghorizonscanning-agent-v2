@@ -27,12 +27,17 @@ try:
     from google.adk.events.event import Event
     import google.adk.sessions.vertex_ai_session_service as vertex_session
     import uuid
+    import google.adk.models.llm_response as adk_llm_response
+    from google.adk.models.llm_response import LlmResponse
+    from google.genai import types
+    import re
 
     # Save original functions
     _orig_contains_empty_content = adk_contents._contains_empty_content
     _orig_get_contents = adk_contents._get_contents
     _orig_from_api_event = vertex_session._from_api_event
     _orig_append_event = vertex_session.VertexAiSessionService.append_event
+    _orig_llm_response_create = LlmResponse.create
 
     def patched_contains_empty_content(event: Event) -> bool:
         if event.actions and event.actions.compaction:
@@ -154,11 +159,129 @@ try:
         
         return await _orig_append_event(self, session, event)
 
+    def patched_llm_response_create(generate_content_response) -> LlmResponse:
+        response = _orig_llm_response_create(generate_content_response)
+        if response.error_code and str(response.error_code) == "MALFORMED_FUNCTION_CALL" and response.error_message:
+            error_msg = response.error_message
+            if "set_model_response" in error_msg:
+                # Reconstruct delimiter safely
+                ctrl_prefix = "<" + "ctrl"
+                ctrl_suffix = "46" + ">"
+                ctrl_tag = ctrl_prefix + ctrl_suffix
+                
+                # Strip outer container first
+                container_match = re.search(r"set_model_response\s*([{(])(.*)", error_msg, re.DOTALL)
+                if container_match:
+                    bracket = container_match.group(1)
+                    rest = container_match.group(2).strip()
+                    closing = "}" if bracket == "{" else ")"
+                    if rest.endswith(closing):
+                        error_msg = rest[:-1].strip()
+                
+                # 1. Extract decision
+                decision = None
+                decision_match = re.search(
+                    rf"decision\s*[:=]\s*(?:{ctrl_tag})?\s*['\"]?(continue|retry)['\"]?\s*(?:{ctrl_tag})?",
+                    error_msg
+                )
+                if decision_match:
+                    decision = decision_match.group(1)
+                
+                # 2. Extract feedback
+                feedback = None
+                # Method A: Structured match using control tags
+                feedback_match = re.search(
+                    rf"feedback\s*[:=]\s*{ctrl_tag}(.*?){ctrl_tag}",
+                    error_msg,
+                    re.DOTALL
+                )
+                if feedback_match:
+                    feedback = feedback_match.group(1)
+                else:
+                    # Method B: Structured match using quotes
+                    feedback_match = re.search(
+                        r"feedback\s*[:=]\s*['\"](.*?)['\"]",
+                        error_msg,
+                        re.DOTALL
+                    )
+                    if feedback_match:
+                        feedback = feedback_match.group(1)
+                
+                # Method C: Fallback to everything after "feedback" up to "followup_queries" or the end
+                if feedback is None:
+                    feedback_section_match = re.search(
+                        r"feedback\s*[:=]\s*(.*)",
+                        error_msg,
+                        re.DOTALL
+                    )
+                    if feedback_section_match:
+                        feedback_part = feedback_section_match.group(1).strip()
+                        # Split by followup_queries if it is present downstream
+                        if "followup_queries" in feedback_part:
+                            feedback_part, _ = re.split(r"\bfollowup_queries\b", feedback_part, maxsplit=1)
+                        # Clean up trailing syntax elements like commas, whitespace
+                        feedback_part = re.sub(r"[\s,]+$", "", feedback_part).strip()
+                        # Clean up prefix/suffix control tags
+                        if feedback_part.startswith(ctrl_tag):
+                            feedback_part = feedback_part[len(ctrl_tag):]
+                        if feedback_part.endswith(ctrl_tag):
+                            feedback_part = feedback_part[:-len(ctrl_tag)]
+                        feedback_part = feedback_part.strip()
+                        # Clean up surrounding quotes
+                        if len(feedback_part) >= 2 and feedback_part[0] in ('"', "'") and feedback_part[-1] == feedback_part[0]:
+                            feedback_part = feedback_part[1:-1]
+                        feedback = feedback_part.strip()
+
+                if feedback is not None:
+                    feedback = feedback.strip()
+                    if len(feedback) >= 2 and feedback[0] in ('"', "'") and feedback[-1] == feedback[0]:
+                        feedback = feedback[1:-1]
+                    feedback = feedback.strip()
+                
+                # 3. Extract followup_queries
+                followup_queries = []
+                queries_match = re.search(
+                    r"followup_queries\s*[:=]\s*(.*)",
+                    error_msg,
+                    re.DOTALL
+                )
+                if queries_match:
+                    queries_part = queries_match.group(1).strip()
+                    # Clean trailing chars
+                    queries_part = re.sub(r"[\s,]+$", "", queries_part).strip()
+                    if ctrl_tag in queries_part:
+                        followup_queries = re.findall(rf"{ctrl_tag}(.*?){ctrl_tag}", queries_part)
+                    else:
+                        followup_queries = re.findall(r"['\"](.*?)['\"]", queries_part)
+                
+                if decision is not None and feedback is not None:
+                    fc_id = f"adk-{uuid.uuid4()}"
+                    func_call = types.FunctionCall(
+                        name="default_api:set_model_response",
+                        args={
+                            "decision": decision,
+                            "feedback": feedback,
+                            "followup_queries": followup_queries
+                        },
+                        id=fc_id
+                    )
+                    response.content = types.Content(
+                        role="model",
+                        parts=[types.Part(function_call=func_call)]
+                    )
+                    response.finish_reason = types.FinishReason.STOP
+                    response.error_code = None
+                    response.error_message = None
+                    import logging
+                    logging.info("Successfully patched MALFORMED_FUNCTION_CALL for set_model_response. Reconstructed function call ID: %s", fc_id)
+        return response
+
     # Apply patches
     adk_contents._contains_empty_content = patched_contains_empty_content
     adk_contents._get_contents = patched_get_contents
     vertex_session._from_api_event = patched_from_api_event
     vertex_session.VertexAiSessionService.append_event = patched_append_event
+    LlmResponse.create = patched_llm_response_create
 
 except Exception as e:
     import logging

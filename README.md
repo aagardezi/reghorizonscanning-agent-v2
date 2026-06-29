@@ -26,7 +26,7 @@ graph TD
     User([User Prompt & Firm Profile]) --> Splitter[Splitter Agent]
     Splitter --> State[Set Session State]
 
-    subgraph Parallel Scanning & Verification Loops
+    subgraph Parallel ["Parallel Scanning & Verification Loops"]
         direction TB
         State --> FCA[FCA Agent] <--> FCAC[FCA Critic / Router]
         State --> PRA[PRA Agent] <--> PRAC[PRA Critic / Router]
@@ -47,7 +47,7 @@ graph TD
 
     Join --> Synthesis[Synthesis Agent]
     
-    subgraph Skills (Progressive Disclosure)
+    subgraph Skills ["Skills (Progressive Disclosure)"]
         SK_RA[regulatory-analysis]
         SK_SA[sanctions-audit]
         SK_CC[compliance-critic]
