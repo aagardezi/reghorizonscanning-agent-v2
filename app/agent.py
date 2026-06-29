@@ -22,21 +22,17 @@ def _agent_designer_pyopenssl_compat():
 _agent_designer_pyopenssl_compat()
 
 
-def _adk_empty_content_compat():
-    try:
-        import google.adk.flows.llm_flows.contents as adk_contents
-        from google.adk.events.event import Event
-        import copy
-        
-        if getattr(adk_contents, "_compat_applied", False):
-            return
+try:
+    import google.adk.flows.llm_flows.contents as adk_contents
+    from google.adk.events.event import Event
+    import google.adk.sessions.vertex_ai_session_service as vertex_session
+    import uuid
 
-        orig_contains_empty_content = getattr(adk_contents, "_contains_empty_content", None)
-        orig_get_contents = getattr(adk_contents, "_get_contents", None)
-        if not orig_contains_empty_content or not orig_get_contents:
-            return
-    except Exception:
-        return
+    # Save original functions
+    _orig_contains_empty_content = adk_contents._contains_empty_content
+    _orig_get_contents = adk_contents._get_contents
+    _orig_from_api_event = vertex_session._from_api_event
+    _orig_append_event = vertex_session.VertexAiSessionService.append_event
 
     def patched_contains_empty_content(event: Event) -> bool:
         if event.actions and event.actions.compaction:
@@ -49,7 +45,7 @@ def _adk_empty_content_compat():
         if has_visible_parts:
             return False
 
-        return orig_contains_empty_content(event)
+        return _orig_contains_empty_content(event)
 
     def patched_get_contents(
         current_branch,
@@ -61,8 +57,6 @@ def _adk_empty_content_compat():
         is_single_turn=False,
         user_content=None,
     ):
-        import uuid
-
         # 1. Filter out events that are annulled by a rewind
         rewind_filtered_events = []
         i = len(events) - 1
@@ -123,7 +117,7 @@ def _adk_empty_content_compat():
                                 if matched:
                                     break
 
-        return orig_get_contents(
+        return _orig_get_contents(
             current_branch=current_branch,
             events=events,
             agent_name=agent_name,
@@ -133,29 +127,8 @@ def _adk_empty_content_compat():
             user_content=user_content,
         )
 
-    adk_contents._contains_empty_content = patched_contains_empty_content
-    adk_contents._get_contents = patched_get_contents
-    adk_contents._compat_applied = True
-
-_adk_empty_content_compat()
-
-def _adk_vertex_session_isolation_compat():
-    try:
-        import google.adk.sessions.vertex_ai_session_service as vertex_session
-        from google.adk.events.event import Event
-        
-        if getattr(vertex_session, "_isolation_compat_applied", False):
-            return
-
-        orig_from_api_event = getattr(vertex_session, "_from_api_event", None)
-        orig_append_event = getattr(vertex_session.VertexAiSessionService, "append_event", None)
-        if not orig_from_api_event or not orig_append_event:
-            return
-    except Exception:
-        return
-
     def patched_from_api_event(api_event_obj) -> Event:
-        event = orig_from_api_event(api_event_obj)
+        event = _orig_from_api_event(api_event_obj)
         # Restore fields from custom_metadata if raw_event is missing
         raw_event_dict = vertex_session._get_raw_event(api_event_obj)
         if not raw_event_dict and event.custom_metadata:
@@ -179,13 +152,17 @@ def _adk_vertex_session_isolation_compat():
         if event.node_info and event.node_info.path:
             event.custom_metadata["_node_info"] = event.node_info.model_dump(mode="json")
         
-        return await orig_append_event(self, session, event)
+        return await _orig_append_event(self, session, event)
 
+    # Apply patches
+    adk_contents._contains_empty_content = patched_contains_empty_content
+    adk_contents._get_contents = patched_get_contents
     vertex_session._from_api_event = patched_from_api_event
     vertex_session.VertexAiSessionService.append_event = patched_append_event
-    vertex_session._isolation_compat_applied = True
 
-_adk_vertex_session_isolation_compat()
+except Exception as e:
+    import logging
+    logging.warning("Failed to apply ADK compatibility patches: %s", e)
 
 
 import datetime
